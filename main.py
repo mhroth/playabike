@@ -22,6 +22,14 @@ def rgb2mA(rgb, gamma=None):
     # assume 50mA at full brightness
     return (50.0/(255.0*3.0)) * sum(rgb)
 
+def tween(start_state, end_state, step, num_iterations=10, tween_state=None):
+    assert len(start_state) == len(end_state)
+    out = tween_state or list(start_state)
+    for i in range(len(start_state)):
+        m = (end_state[i]-start_state[i]) / float(num_iterations) # slope
+        out[i] = (step%num_iterations)*m + start_state[i]
+    return out
+
 # class StripTest(BaseStripAnim):
 #     def __init__(self, led, fps=None, gamma=None, start=0, end=-1):
 #         #The base class MUST be initialized by calling super like this
@@ -53,7 +61,7 @@ def rgb2mA(rgb, gamma=None):
 #         self._step += amt
 
 class Rule90Anim(BaseStripAnim):
-    def __init__(self, led, fps=None, gamma=None, start=0, end=-1):
+    def __init__(self, led, fps=None, gamma=None, tween_time=1, start=0, end=-1):
         #The base class MUST be initialized by calling super like this
         super(Rule90Anim, self).__init__(led, start, end)
         #Create a color array to use in the animation
@@ -64,26 +72,67 @@ class Rule90Anim(BaseStripAnim):
 
         self.__total_Ah = 0.0
         self.__gamma = gamma
+        self.__tween_rate = int(fps * float(tween_time))
 
-        # start with random state
-        self.__currentState = 0
+        # Rule 90
+        # https://en.wikipedia.org/wiki/Rule_90
+        # self.__ca_rules = {
+        #     (0,0,0): 0,
+        #     (0,0,1): 1,
+        #     (0,1,0): 0,
+        #     (0,1,1): 1,
+        #     (1,0,0): 1,
+        #     (1,0,1): 0,
+        #     (1,1,0): 1,
+        #     (1,1,1): 0
+        # }
+
+        # Rule 110
+        # https://en.wikipedia.org/wiki/Rule_110
+        self.__ca_rules = {
+            (0,0,0): 0,
+            (0,0,1): 1,
+            (0,1,0): 1,
+            (0,1,1): 1,
+            (1,0,0): 0,
+            (1,0,1): 1,
+            (1,1,0): 1,
+            (1,1,1): 0
+        }
+
+        # define CA state arrays
+        self.__current_state_index = 0
         self.__ca_state = [
             [0 for _ in range(led.numLEDs+2)],
             [0 for _ in range(led.numLEDs+2)]
         ]
-        self.__ca_state[self.__currentState][int(led.numLEDs/2)] = 1 # for Sirpenski Triangle
 
-        # Rule 90
-        self.__ca_rules = {
-            (0,0,0): 0,
-            (0,0,1): 1,
-            (0,1,0): 0,
-            (0,1,1): 1,
-            (1,0,0): 1,
-            (1,0,1): 0,
-            (1,1,0): 1,
-            (1,1,1): 0
-        }
+        # define tween state
+        self.__tween_state = [0 for _ in range(led.numLEDs+2)]
+
+        # set initial state
+        # for Sirpenski Triangle (Rule 90)
+        # self.__ca_state[self.__current_state_index][int(led.numLEDs/2)] = 1
+
+        # random start
+        for i in range(led.numLEDs+2):
+            self.__ca_state[self.__current_state_index][i] = random.choice([0,1])
+
+        # ensure toridal state (state wraps around the array)
+        self.__ca_state[self.__current_state_index][0] = self.__ca_state[self.__current_state_index][led.numLEDs]
+        self.__ca_state[self.__current_state_index][led.numLEDs+1] = self.__ca_state[self.__current_state_index][1]
+
+        # update state once to get next state
+        self.__update_ca_state()
+
+    def __update_ca_state(self):
+        old_state = self.__ca_state[self.__current_state_index]
+        new_state = self.__ca_state[self.__current_state_index^1]
+        self.__current_state_index ^= 1 # switch state
+        for i in range(1,led.numLEDs+1):
+            new_state[i] = self.__ca_rules[tuple(old_state[i-1:i+2])]
+        new_state[0] = new_state[led.numLEDs]
+        new_state[led.numLEDs+1] = new_state[1]
 
     def preRun(self, amt=1):
         self._led.all_off()
@@ -93,18 +142,19 @@ class Rule90Anim(BaseStripAnim):
         # Fill the strip, with each sucessive color
         total_mA = 0.0
 
-        # update CA state
-        curent_state = self.__ca_state[self.__currentState]
-        new_state = self.__ca_state[self.__currentState^1]
-        for i in range(1,led.numLEDs+1):
-            new_state[i] = self.__ca_rules[tuple(curent_state[i-1:i+2])]
-        new_state[0] = new_state[led.numLEDs]
-        new_state[led.numLEDs+1] = new_state[1]
-        self.__currentState ^= 1 # switch state
+        if (self._step % self.__tween_rate) == 0:
+            self.__update_ca_state()
+
+        tween_state = tween(
+            self.__ca_state[self.__current_state_index^1], # old state
+            self.__ca_state[self.__current_state_index], # current state
+            self._step,
+            self.__tween_rate,
+            self.__tween_state)
 
         # update LED values
         for i in range(self._led.numLEDs):
-            rgb = (0,0,0) if new_state[i+1] == 0 else (255,255,255)
+            rgb = (int(255*tween_state[i]), int(255*tween_state[i]), int(255*tween_state[i]))
             self._led.set(i, rgb)
             total_mA += rgb2mA(rgb, self.__gamma)
         self.__total_Ah += (total_mA * self._internalDelay / 3600000000.0)
@@ -121,7 +171,8 @@ driver = DriverVisualizer(5*30)
 # https://github.com/ManiacalLabs/BiblioPixel/wiki/LEDStrip
 led = LEDStrip(driver)
 
-anim = Rule90Anim(led, fps=10, gamma=gamma.APA102)
+# anim = Rule90Anim(led, fps=20, gamma=gamma.APA102, tween_time=4)
+anim = Rule90Anim(led, fps=20, gamma=None, tween_time=4)
 anim.run()
 
 # writing an animation
