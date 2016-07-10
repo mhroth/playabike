@@ -60,10 +60,10 @@ def tween(start_state, end_state, step, num_iterations=10, tween_state=None):
 #         # Increment the internal step by the given amount
 #         self._step += amt
 
-class Rule90Anim(BaseStripAnim):
+class CellularAutomataAnim(BaseStripAnim):
     def __init__(self, led, fps=None, gamma=None, tween_time=1, start=0, end=-1):
         #The base class MUST be initialized by calling super like this
-        super(Rule90Anim, self).__init__(led, start, end)
+        super(CellularAutomataAnim, self).__init__(led, start, end)
         #Create a color array to use in the animation
         self._colors = [colors.Red, colors.Orange, colors.Yellow, colors.Green, colors.Blue, colors.Indigo]
 
@@ -100,7 +100,21 @@ class Rule90Anim(BaseStripAnim):
             (1,1,1): 0
         }
 
+        # Rule 30
+        # https://en.wikipedia.org/wiki/Rule_30
+        self.__ca_rules = {
+            (0,0,0): 0,
+            (0,0,1): 1,
+            (0,1,0): 1,
+            (0,1,1): 1,
+            (1,0,0): 1,
+            (1,0,1): 0,
+            (1,1,0): 0,
+            (1,1,1): 0
+        }
+
         # define CA state arrays
+        # https://en.wikipedia.org/wiki/Elementary_cellular_automaton
         self.__current_state_index = 0
         self.__ca_state = [
             [0 for _ in range(led.numLEDs+2)],
@@ -111,12 +125,12 @@ class Rule90Anim(BaseStripAnim):
         self.__tween_state = [0 for _ in range(led.numLEDs+2)]
 
         # set initial state
-        # for Sirpenski Triangle (Rule 90)
-        # self.__ca_state[self.__current_state_index][int(led.numLEDs/2)] = 1
+        # for Sirpenski Triangle (Rule 90, 30)
+        self.__ca_state[self.__current_state_index][int(led.numLEDs/2)] = 1
 
         # random start
-        for i in range(led.numLEDs+2):
-            self.__ca_state[self.__current_state_index][i] = random.choice([0,1])
+        # for i in range(led.numLEDs+2):
+        #     self.__ca_state[self.__current_state_index][i] = random.choice([0,1])
 
         # ensure toridal state (state wraps around the array)
         self.__ca_state[self.__current_state_index][0] = self.__ca_state[self.__current_state_index][led.numLEDs]
@@ -171,8 +185,7 @@ driver = DriverVisualizer(5*30)
 # https://github.com/ManiacalLabs/BiblioPixel/wiki/LEDStrip
 led = LEDStrip(driver)
 
-# anim = Rule90Anim(led, fps=20, gamma=gamma.APA102, tween_time=4)
-anim = Rule90Anim(led, fps=20, gamma=None, tween_time=4)
+anim = CellularAutomataAnim(led, fps=20, gamma=gamma.APA102, tween_time=4)
 anim.run()
 
 # writing an animation
