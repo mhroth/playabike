@@ -1,6 +1,9 @@
 # Copyright 2016 Martin Roth (mhroth@gmail.com). All Rights Reserved.
 
 import math
+import os
+import random
+import sys
 
 sys.path.append(os.path.abspath("../BiblioPixel"))
 from bibliopixel.led import *
@@ -23,10 +26,10 @@ class WaveAnim(BaseStripAnim):
         # declare simulation memory
         self.__current_state_index = 0
         self.__wave_state_pos = [
-            [0.0 for _ in range(led.numLEDs)],
-            [0.0 for _ in range(led.numLEDs)]
+            [0.0 for _ in range(self._led.numLEDs)],
+            [0.0 for _ in range(self._led.numLEDs)]
         ]
-        self.__wave_state_vel = [0.0 for _ in range(led.numLEDs)]
+        self.__wave_state_vel = [0.0 for _ in range(self._led.numLEDs)]
 
         # set next impulse to be immediately, to initialise simutlation
         self.__next_impulse = self._step
@@ -81,6 +84,16 @@ class WaveAnim(BaseStripAnim):
     def __rms(self, x):
         return math.sqrt(sum(i**2 for i in x)/len(x))
 
+    def __rgb2mA(self, rgb, gamma=None):
+        """ Returns the number of milliamps used during this step
+            for a given RGB tuple. Accounts for the given gamma correction.
+        """
+        if gamma:
+            rgb = (gamma[x] for x in rgb)
+
+        # assume 60mA at full brightness
+        return (60.0/(255.0*3.0)) * sum(rgb)
+
     # https://en.wikipedia.org/wiki/Wave_equation#Investigation_by_numerical_methods
     def __update_wave_state(self, K=5, L=0.1, dt=1.0):
         """ c: speed of propagation
@@ -97,18 +110,18 @@ class WaveAnim(BaseStripAnim):
         self.__wave_state_vel[0] += a * dt
         new_pos[0] = old_pos[0] + (self.__wave_state_vel[0] * dt)
 
-        # 0 < i < led.numLEDs-1
-        for i in range(1,led.numLEDs-1):
+        # 0 < i < self._led.numLEDs-1
+        for i in range(1,self._led.numLEDs-1):
             a = K * (old_pos[i+1] + old_pos[i-1] - 2.0*old_pos[i]) # acceleration
             a -= L * self.__wave_state_vel[i] # damping force
             self.__wave_state_vel[i] += a * dt
             new_pos[i] = old_pos[i] + (self.__wave_state_vel[i] * dt)
 
-        # i == led.numLEDs-1
-        a = K * (old_pos[led.numLEDs-2] - 2.0*old_pos[led.numLEDs-1])
-        a -= L * self.__wave_state_vel[led.numLEDs-1]
-        self.__wave_state_vel[led.numLEDs-1] += a * dt
-        new_pos[led.numLEDs-1] = old_pos[led.numLEDs-1] + (self.__wave_state_vel[led.numLEDs-1] * dt)
+        # i == self._led.numLEDs-1
+        a = K * (old_pos[self._led.numLEDs-2] - 2.0*old_pos[self._led.numLEDs-1])
+        a -= L * self.__wave_state_vel[self._led.numLEDs-1]
+        self.__wave_state_vel[self._led.numLEDs-1] += a * dt
+        new_pos[self._led.numLEDs-1] = old_pos[self._led.numLEDs-1] + (self.__wave_state_vel[self._led.numLEDs-1] * dt)
 
     def preRun(self, amt=1):
         self._led.all_off()
@@ -120,7 +133,7 @@ class WaveAnim(BaseStripAnim):
 
         if self._step == self.__next_impulse:
             # set the impulse
-            i = random.randint(0, led.numLEDs-1)
+            i = random.randint(0, self._led.numLEDs-1)
             self.__wave_state_pos[self.__current_state_index][i] = random.choice([-1.0, 1.0])
             self.__wave_state_vel[i] = 0.0
             self.__schedule_next_impulse()
@@ -160,9 +173,10 @@ class WaveAnim(BaseStripAnim):
             # rgb = (rgb[2], rgb[1], rgb[0])
 
             self._led.set(i, rgb)
-            total_mA += rgb2mA(rgb, self.__gamma)
+            total_mA += self.__rgb2mA(rgb, self.__gamma)
         self.__total_Ah += (total_mA * self._internalDelay / 3600000000.0)
-        print self.__total_Ah / (self._led.numLEDs*rgb2mA((255,255,255)) * ((self._msTime() - self.__start_time) / 3600000000.0))
+        # print self.__total_Ah / (self._led.numLEDs*self.__rgb2mA((255,255,255)) * ((self._msTime() - self.__start_time) / 3600000000.0))
+        print total_mA
 
         # Increment the internal step by the given amount
         self._step += amt

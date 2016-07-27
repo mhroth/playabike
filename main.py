@@ -16,7 +16,7 @@ from bibliopixel.gamma import *
 
 from WaveAnim import WaveAnim
 from LorenzAnim import LorenzAnim
-from CellularAutomataAnim importy CellularAutomataAnim
+from CellularAutomataAnim import CellularAutomataAnim
 
 # TODO(mhroth):
 #  gravity, solar systems
@@ -28,24 +28,6 @@ from CellularAutomataAnim importy CellularAutomataAnim
 #    waves with damping
 #  1D cellular automata
 #
-
-def rgb2mA(rgb, gamma=None):
-    """ Returns the number of milliamps used during this step
-        for a given RGB tuple. Accounts for the given gamma correction.
-    """
-    if gamma:
-        rgb = (gamma[x] for x in rgb)
-
-    # assume 50mA at full brightness
-    return (50.0/(255.0*3.0)) * sum(rgb)
-
-def tween(start_state, end_state, step, num_iterations=10, tween_state=None):
-    assert len(start_state) == len(end_state)
-    out = tween_state or list(start_state)
-    for i in range(len(start_state)):
-        m = (end_state[i]-start_state[i]) / float(num_iterations) # slope
-        out[i] = (step%num_iterations)*m + start_state[i]
-    return out
 
 # class StripTest(BaseStripAnim):
 #     def __init__(self, led, fps=None, gamma=None, start=0, end=-1):
@@ -77,19 +59,17 @@ def tween(start_state, end_state, step, num_iterations=10, tween_state=None):
 #         # Increment the internal step by the given amount
 #         self._step += amt
 
-__FPS = 60
-
 #create driver for a 30 pixels
 # https://github.com/ManiacalLabs/BiblioPixel/wiki/DriverSerial
-driver = DriverSerial(LEDTYPE.APA102, 30, SPISpeed=24, gamma=gamma.APA102)
-# driver = DriverVisualizer(5*30)
+driver = DriverSerial(LEDTYPE.APA102, 5*32, SPISpeed=24, gamma=gamma.APA102)
+# driver = DriverVisualizer(5*32)
 
 # https://github.com/ManiacalLabs/BiblioPixel/wiki/LEDStrip
 led = LEDStrip(driver)
 
-# anim = CellularAutomataAnim(led, fps=__FPS, gamma=gamma.APA102, tween_time=4)
-# anim = WaveAnim(led, fps=__FPS, gamma=gamma.APA102, mean_impulse_period=30.0)
-anim = LorenzAnim(led, fps=__FPS, gamma=gamma.APA102)
+anim = CellularAutomataAnim(led, fps=20, gamma=gamma.APA102, tween_time=4)
+# anim = WaveAnim(led, fps=20, gamma=gamma.APA102, mean_impulse_period=30.0)
+# anim = LorenzAnim(led, fps=60, gamma=gamma.APA102)
 anim.run()
 
 # writing an animation

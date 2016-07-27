@@ -1,6 +1,9 @@
 # Copyright 2016 Martin Roth (mhroth@gmail.com). All Rights Reserved.
 
+import colorsys
 import math
+import os
+import sys
 
 sys.path.append(os.path.abspath("../BiblioPixel"))
 from bibliopixel.led import *
@@ -25,6 +28,16 @@ class LorenzAnim(BaseStripAnim):
 
         self.__total_Ah = 0.0
         self.__gamma = gamma
+
+    def __rgb2mA(self, rgb, gamma=None):
+        """ Returns the number of milliamps used during this step
+            for a given RGB tuple. Accounts for the given gamma correction.
+        """
+        if gamma:
+            rgb = (gamma[x] for x in rgb)
+
+        # assume 60mA at full brightness
+        return (60.0/(255.0*3.0)) * sum(rgb)
 
     def __scale(self, x, i_start, i_end, o_start, o_end):
         y = (x-i_start)/(i_end-i_start)
@@ -81,9 +94,10 @@ class LorenzAnim(BaseStripAnim):
             rgb = (int(255*b),int(255*g),int(255*r))
             self._led.set(i, rgb)
 
-            total_mA += rgb2mA(rgb, self.__gamma)
+            total_mA += self.__rgb2mA(rgb, self.__gamma)
         self.__total_Ah += (total_mA * self._internalDelay / 3600000000.0)
-        # print self.__total_Ah / (self._led.numLEDs*rgb2mA((255,255,255)) * ((self._msTime() - self.__start_time) / 3600000000.0))
+        # print self.__total_Ah / (self._led.numLEDs*self.__rgb2mA((255,255,255)) * ((self._msTime() - self.__start_time) / 3600000000.0))
+        print total_mA
 
         # Increment the internal step by the given amount
         self._step += amt
