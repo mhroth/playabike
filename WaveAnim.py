@@ -139,7 +139,8 @@ class WaveAnim(BaseStripAnim):
             self.__schedule_next_impulse()
 
         # update the wave simulation
-        self.__update_wave_state(K=2, L=0.05, dt=(self._internalDelay/1000.0))
+        # self.__update_wave_state(K=2, L=0.05, dt=(self._internalDelay/1000.0))
+        self.__update_wave_state(K=2, L=0, dt=(self._internalDelay/1000.0))
 
         current_pos = self.__wave_state_pos[self.__current_state_index]
 

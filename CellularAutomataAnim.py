@@ -141,7 +141,7 @@ class CellularAutomataAnim(BaseStripAnim):
             total_mA += self.__rgb2mA(rgb, self.__gamma)
         self.__total_Ah += (total_mA * self._internalDelay / 3600000000.0)
         # print self.__total_Ah / (self._led.numLEDs*self.__rgb2mA((255,255,255)) * ((self._msTime() - self.__start_time) / 3600000000.0))
-        print total_mA
+        # print total_mA
 
         # Increment the internal step by the given amount
         self._step += amt

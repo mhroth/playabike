@@ -12,6 +12,18 @@ from bibliopixel.drivers.serial_driver import *
 from bibliopixel.drivers.visualizer import *
 from bibliopixel.gamma import *
 
+class Colours:
+    purple = "\033[95m"
+    cyan = "\033[96m"
+    dark_cyan = "\033[36m"
+    blue = "\033[94m"
+    green = "\033[92m"
+    yellow = "\033[93m"
+    red = "\033[91m"
+    bold = "\033[1m"
+    underline = "\033[4m"
+    end = "\033[0m"
+
 class LorenzAnim(BaseStripAnim):
     def __init__(self, led, fps=None, gamma=None, start=0, end=-1):
         super(LorenzAnim, self).__init__(led, start, end)
@@ -97,7 +109,11 @@ class LorenzAnim(BaseStripAnim):
             total_mA += self.__rgb2mA(rgb, self.__gamma)
         self.__total_Ah += (total_mA * self._internalDelay / 3600000000.0)
         # print self.__total_Ah / (self._led.numLEDs*self.__rgb2mA((255,255,255)) * ((self._msTime() - self.__start_time) / 3600000000.0))
-        print total_mA
+        # print "I_avg: {0}mA ({2}{1}mA{3})".format(
+        #     int(self.__total_Ah/((self._msTime() - self.__start_time) / 3600000000.0)),
+        #     int(total_mA),
+        #     Colours.green if total_mA < 1800 else Colours.yellow if total_mA < 2000 else Colours.red,
+        #     Colours.end)
 
         # Increment the internal step by the given amount
         self._step += amt
